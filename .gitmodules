@@ -1,0 +1,3 @@
+[submodule "zhihu-ai-summary-extension"]
+	path = zhihu-ai-summary-extension
+	url = https://github.com/summer-8848/zhihu-ai-summary-extension
