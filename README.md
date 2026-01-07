@@ -15,10 +15,23 @@
 - **自动适配**：自动检测页面类型，为不同内容添加相应的总结按钮
 
 ### 文章总结
-![问题](./screenshot/文章.png)
+![文章](./zhihu-ai-summary-extension/screenshot/文章.png)
 
 ### 问题总结
-![问题](./screenshot/问题.png)
+![问题](./zhihu-ai-summary-extension/screenshot/问题.png)
 
 ### 回答总结
-![回答](./screenshot/回答.png)
+![回答](./zhihu-ai-summary-extension/screenshot/回答.png)
+
+## 更新日志
+
+### v1.1.0 (2024-12-24)
+- 添加最少回答字数设置
+- 优化自动总结逻辑
+
+### v1.0.0 (2024-12-22)
+- 初始版本发布
+- 支持文章、问题、回答的 AI 总结
+- 多账号管理功能
+- 自动总结功能
+- 流式输出支持
