@@ -15,13 +15,13 @@
 - **自动适配**：自动检测页面类型，为不同内容添加相应的总结按钮
 
 ### 文章总结
-![文章](./zhihu-ai-summary-extension/screenshot/文章.png)
+![文章](https://github.com/summer-8848/zhihu-ai-summary-extension/raw/main/screenshot/文章.png)
 
 ### 问题总结
-![问题](./zhihu-ai-summary-extension/screenshot/问题.png)
+![问题](https://github.com/summer-8848/zhihu-ai-summary-extension/raw/main/screenshot/问题.png)
 
 ### 回答总结
-![回答](./zhihu-ai-summary-extension/screenshot/回答.png)
+![回答](https://github.com/summer-8848/zhihu-ai-summary-extension/raw/main/screenshot/回答.png)
 
 ## 更新日志
 
