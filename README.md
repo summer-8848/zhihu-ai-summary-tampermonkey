@@ -14,14 +14,17 @@
 - **易于配置**：可视化配置界面，一键保存API Key
 - **自动适配**：自动检测页面类型，为不同内容添加相应的总结按钮
 
+### 动图预览
+![动图预览](./screenshot/preview.gif)
+
 ### 文章总结
-![文章](https://github.com/summer-8848/zhihu-ai-summary-extension/raw/main/screenshot/文章.png)
+![文章](./screenshot/文章.png)
 
 ### 问题总结
-![问题](https://github.com/summer-8848/zhihu-ai-summary-extension/raw/main/screenshot/问题.png)
+![问题](./screenshot/问题.png)
 
 ### 回答总结
-![回答](https://github.com/summer-8848/zhihu-ai-summary-extension/raw/main/screenshot/回答.png)
+![回答](./screenshot/回答.png)
 
 ## 更新日志
 

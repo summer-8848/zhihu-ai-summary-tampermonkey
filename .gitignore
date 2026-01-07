@@ -1,1 +1,8 @@
+# ide
 .vscode
+.idea
+.claude
+
+# MD
+*.md
+!README.md
