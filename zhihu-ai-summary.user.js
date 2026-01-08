@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         知乎AI总结助手
 // @namespace    http://tampermonkey.net/
-// @version      1.2.0
+// @version      1.2.1
 // @description  为知乎文章、问题、回答添加AI总结功能，调用ChatGPT进行智能总结
 // @author       Summer121
 // @match        https://*.zhihu.com/*
@@ -525,7 +525,8 @@
                 if (elementHeight < maxPanelHeight) {
                     panel.classList.add('short');
                     const panelHeight = Math.max(minPanelHeight, elementHeight);
-                    panel.style.height = `${panelHeight}px`;
+                    panel.style.height = 'auto';
+                    panel.style.maxHeight = `${panelHeight}px`;
                 } else {
                     panel.classList.add('long');
                 }
