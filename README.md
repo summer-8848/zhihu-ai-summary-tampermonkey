@@ -3,7 +3,7 @@
 一个强大的油猴脚本，为知乎文章、问题和回答添加AI总结功能，使用ChatGPT进行智能内容总结。
 
 ## 安装
-- [一键安装油猴脚本](https://greasyfork.org/zh-CN/scripts/559782-%E7%9F%A5%E4%B9%8Eai%E6%80%BB%E7%BB%93%E5%8A%A9%E6%89%8B?locale_override=1)
+- [一键安装油猴脚本](https://greasyfork.org/zh-CN/scripts/559782-%E7%9F%A5%E4%B9%8Eai%E6%80%BB%E7%BB%93%E5%8A%A9%E6%89%8B-by-summer121?locale_override=1)
 - [安装浏览器扩展版](https://github.com/summer-8848/zhihu-ai-summary-extension)
 
 ## 功能特点
@@ -27,6 +27,9 @@
 ![回答](./screenshot/回答.png)
 
 ## 更新日志
+
+### v1.2.2 (2026-01-22)
+- 修改插件基本信息，避免油猴脚本重名
 
 ### v1.2.1 (2026-01-08)
 - 对于较短的回答，总结结果改为自适应高度显示，提升阅读体验
