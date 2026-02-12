@@ -139,6 +139,119 @@
         .zhihu-ai-answer-result-body .markdown-table tr:hover, .zhihu-ai-article-result-body .markdown-table tr:hover, .zhihu-ai-inline-body .markdown-table tr:hover { background: #f9f9f9; }
     `;
 
+    class ConfigManager {
+        constructor() {
+            this.isExtension = typeof chrome !== 'undefined' && chrome.storage;
+            this.storage = this.initStorage();
+        }
+
+        initStorage() {
+            if (this.isExtension) {
+                return {
+                    async get(key, defaultValue = null) {
+                        return new Promise((resolve) => {
+                            chrome.storage.sync.get({[key]: defaultValue}, (result) => {
+                                resolve(result[key]);
+                            });
+                        });
+                    },
+                    async set(key, value) {
+                        return new Promise((resolve) => {
+                            chrome.storage.sync.set({[key]: value}, resolve);
+                        });
+                    }
+                };
+            } else {
+                return {
+                    get(key, defaultValue = null) {
+                        return GM_getValue(key, defaultValue);
+                    },
+                    set(key, value) {
+                        GM_setValue(key, value);
+                    }
+                };
+            }
+        }
+
+        async get(key, defaultValue = null) {
+            try {
+                return await this.storage.get(key, defaultValue);
+            } catch (error) {
+                console.warn(`配置获取失败 [${key}]:`, error);
+                return defaultValue;
+            }
+        }
+
+        getSync(key, defaultValue = null) {
+            if (this.isExtension) {
+                console.warn('浏览器插件版本不支持同步获取配置');
+                return defaultValue;
+            }
+            
+            try {
+                return this.storage.get(key, defaultValue);
+            } catch (error) {
+                console.warn(`配置获取失败 [${key}]:`, error);
+                return defaultValue;
+            }
+        }
+
+        async set(key, value) {
+            try {
+                await this.storage.set(key, value);
+                return true;
+            } catch (error) {
+                console.error(`配置设置失败 [${key}]:`, error);
+                return false;
+            }
+        }
+
+        async getBatch(configs) {
+            const results = {};
+            for (const [key, defaultValue] of Object.entries(configs)) {
+                results[key] = await this.get(key, defaultValue);
+            }
+            return results;
+        }
+
+        async setBatch(configs) {
+            const results = {};
+            for (const [key, value] of Object.entries(configs)) {
+                results[key] = await this.set(key, value);
+            }
+            return results;
+        }
+
+        async exportConfig() {
+            const configs = {
+                'AI_ACCOUNTS': await this.get('AI_ACCOUNTS', []),
+                'CURRENT_ACCOUNT_ID': await this.get('CURRENT_ACCOUNT_ID', ''),
+                'AUTO_SUMMARIZE': await this.get('AUTO_SUMMARIZE', false),
+                'MIN_ANSWER_LENGTH': await this.get('MIN_ANSWER_LENGTH', 200)
+            };
+            
+            return JSON.stringify(configs, null, 2);
+        }
+
+        async importConfig(configJson) {
+            try {
+                const configs = JSON.parse(configJson);
+                await this.setBatch(configs);
+                return true;
+            } catch (error) {
+                console.error('配置导入失败:', error);
+                return false;
+            }
+        }
+
+        async clearAll() {
+            const keys = ['AI_ACCOUNTS', 'CURRENT_ACCOUNT_ID', 'AUTO_SUMMARIZE', 'MIN_ANSWER_LENGTH'];
+            for (const key of keys) {
+                await this.set(key, null);
+            }
+        }
+    }
+
     class MarkdownParser {
         static parse(markdown) {
             let html = markdown.replace(/\n{3,}/g, '\n\n');
@@ -292,37 +405,18 @@
 
     class APIClient {
         constructor() {
+            this.configManager = new ConfigManager();
             this.loadCurrentAccount();
         }
 
-        loadCurrentAccount() {
-            const accounts = GM_getValue('AI_ACCOUNTS', []);
-            const currentAccountId = GM_getValue('CURRENT_ACCOUNT_ID', '');
+        async loadCurrentAccount() {
+            const accounts = await this.configManager.get('AI_ACCOUNTS', []);
+            const currentAccountId = await this.configManager.get('CURRENT_ACCOUNT_ID', '');
 
             if (accounts.length === 0) {
-                const legacyKey = GM_getValue('OPENAI_API_KEY', '');
-                const legacyUrl = GM_getValue('OPENAI_API_URL', 'https://api.openai.com/v1/chat/completions');
-                const legacyModel = GM_getValue('OPENAI_MODEL', 'gpt-4.1-mini');
-
-                if (legacyKey) {
-                    const defaultAccount = {
-                        id: Date.now().toString(),
-                        name: legacyUrl,
-                        apiUrl: legacyUrl,
-                        apiKey: legacyKey,
-                        model: legacyModel
-                    };
-                    accounts.push(defaultAccount);
-                    GM_setValue('AI_ACCOUNTS', accounts);
-                    GM_setValue('CURRENT_ACCOUNT_ID', defaultAccount.id);
-                    this.apiKey = defaultAccount.apiKey;
-                    this.apiUrl = defaultAccount.apiUrl;
-                    this.model = defaultAccount.model;
-                } else {
-                    this.apiKey = '';
-                    this.apiUrl = 'https://api.openai.com/v1/chat/completions';
-                    this.model = 'gpt-4.1-mini';
-                }
+                this.apiKey = '';
+                this.apiUrl = 'https://api.openai.com/v1/chat/completions';
+                this.model = 'gpt-4.1-mini';
             } else {
                 const currentAccount = accounts.find(acc => acc.id === currentAccountId) || accounts[0];
                 if (currentAccount) {
@@ -330,7 +424,7 @@
                     this.apiUrl = currentAccount.apiUrl;
                     this.model = currentAccount.model;
                     if (!currentAccountId) {
-                        GM_setValue('CURRENT_ACCOUNT_ID', currentAccount.id);
+                        await this.configManager.set('CURRENT_ACCOUNT_ID', currentAccount.id);
                     }
                 }
             }
@@ -434,6 +528,7 @@
 
     class UIManager {
         constructor() {
+            this.configManager = new ConfigManager();
             this.apiClient = new APIClient();
             this.injectStyles();
             this.createConfigButton();
@@ -642,11 +737,11 @@
             document.body.appendChild(button);
         }
 
-        showConfigModal() {
-            const accounts = GM_getValue('AI_ACCOUNTS', []);
-            const currentAccountId = GM_getValue('CURRENT_ACCOUNT_ID', '');
-            const autoSummarize = GM_getValue('AUTO_SUMMARIZE', false);
-            const minAnswerLength = GM_getValue('MIN_ANSWER_LENGTH', 200);
+        async showConfigModal() {
+            const accounts = await this.configManager.get('AI_ACCOUNTS', []);
+            const currentAccountId = await this.configManager.get('CURRENT_ACCOUNT_ID', '');
+            const autoSummarize = await this.configManager.get('AUTO_SUMMARIZE', false);
+            const minAnswerLength = await this.configManager.get('MIN_ANSWER_LENGTH', 200);
 
             const modal = document.createElement('div');
             modal.className = 'zhihu-ai-modal';
@@ -696,10 +791,10 @@
                 </div>
             `;
 
-            const renderAccounts = () => {
+            const renderAccounts = async () => {
                 const accountList = modal.querySelector('#account-list');
-                const currentAccounts = GM_getValue('AI_ACCOUNTS', []);
-                const currentId = GM_getValue('CURRENT_ACCOUNT_ID', '');
+                const currentAccounts = await this.configManager.get('AI_ACCOUNTS', []);
+                const currentId = await this.configManager.get('CURRENT_ACCOUNT_ID', '');
 
                 if (currentAccounts.length === 0) {
                     accountList.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #999;">暂无账号，请添加新账号</div>';
@@ -721,11 +816,11 @@
                 `).join('');
 
                 accountList.querySelectorAll('.zhihu-ai-account-item').forEach(item => {
-                    item.addEventListener('click', (e) => {
+                    item.addEventListener('click', async (e) => {
                         if (e.target.classList.contains('zhihu-ai-account-btn')) return;
                         const accountId = item.dataset.id;
-                        GM_setValue('CURRENT_ACCOUNT_ID', accountId);
-                        this.apiClient.loadCurrentAccount();
+                        await this.configManager.set('CURRENT_ACCOUNT_ID', accountId);
+                        await this.apiClient.loadCurrentAccount();
                         renderAccounts();
                     });
                 });
@@ -735,14 +830,15 @@
                 });
 
                 accountList.querySelectorAll('.zhihu-ai-account-btn-delete').forEach(btn => {
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', async () => {
                         if (confirm('确定要删除这个账号吗？')) {
-                            const accounts = GM_getValue('AI_ACCOUNTS', []);
+                            const accounts = await this.configManager.get('AI_ACCOUNTS', []);
                             const filteredAccounts = accounts.filter(acc => acc.id !== btn.dataset.id);
-                            GM_setValue('AI_ACCOUNTS', filteredAccounts);
-                            if (btn.dataset.id === GM_getValue('CURRENT_ACCOUNT_ID', '')) {
-                                GM_setValue('CURRENT_ACCOUNT_ID', filteredAccounts[0]?.id || '');
-                                this.apiClient.loadCurrentAccount();
+                            await this.configManager.set('AI_ACCOUNTS', filteredAccounts);
+                            const currentId = await this.configManager.get('CURRENT_ACCOUNT_ID', '');
+                            if (btn.dataset.id === currentId) {
+                                await this.configManager.set('CURRENT_ACCOUNT_ID', filteredAccounts[0]?.id || '');
+                                await this.apiClient.loadCurrentAccount();
                             }
                             renderAccounts();
                         }
@@ -754,8 +850,8 @@
                 });
             };
 
-            const showCopyAccountForm = (sourceId) => {
-                const accounts = GM_getValue('AI_ACCOUNTS', []);
+            const showCopyAccountForm = async (sourceId) => {
+                const accounts = await this.configManager.get('AI_ACCOUNTS', []);
                 const sourceAccount = accounts.find(acc => acc.id === sourceId);
                 if (!sourceAccount) return;
 
@@ -845,9 +941,9 @@
                         model: model
                     };
 
-                    const accounts = GM_getValue('AI_ACCOUNTS', []);
+                    const accounts = await this.configManager.get('AI_ACCOUNTS', []);
                     accounts.push(newAccount);
-                    GM_setValue('AI_ACCOUNTS', accounts);
+                    await this.configManager.set('AI_ACCOUNTS', accounts);
                     formModal.remove();
                     renderAccounts();
                 });
@@ -855,8 +951,8 @@
                 document.body.appendChild(formModal);
             };
 
-            const showAccountForm = (editId = null) => {
-                const accounts = GM_getValue('AI_ACCOUNTS', []);
+            const showAccountForm = async (editId = null) => {
+                const accounts = await this.configManager.get('AI_ACCOUNTS', []);
                 const editAccount = editId ? accounts.find(acc => acc.id === editId) : null;
 
                 const formModal = document.createElement('div');
@@ -927,7 +1023,7 @@
                     }
                 });
 
-                formModal.querySelector('#save-account-btn').addEventListener('click', () => {
+                formModal.querySelector('#save-account-btn').addEventListener('click', async () => {
                     const name = formModal.querySelector('#account-name').value.trim();
                     const url = formModal.querySelector('#account-url').value.trim();
                     const key = formModal.querySelector('#account-key').value.trim();
@@ -938,7 +1034,7 @@
                         return;
                     }
 
-                    const accounts = GM_getValue('AI_ACCOUNTS', []);
+                    const accounts = await this.configManager.get('AI_ACCOUNTS', []);
 
                     if (editId) {
                         const index = accounts.findIndex(acc => acc.id === editId);
@@ -960,11 +1056,11 @@
                             model: model
                         };
                         accounts.push(newAccount);
-                        GM_setValue('CURRENT_ACCOUNT_ID', newAccount.id);
+                        await this.configManager.set('CURRENT_ACCOUNT_ID', newAccount.id);
                     }
 
-                    GM_setValue('AI_ACCOUNTS', accounts);
-                    this.apiClient.loadCurrentAccount();
+                    await this.configManager.set('AI_ACCOUNTS', accounts);
+                    await this.apiClient.loadCurrentAccount();
                     formModal.remove();
                     renderAccounts();
                 });
@@ -988,14 +1084,7 @@
 
             modal.querySelector('#export-config-btn').addEventListener('click', async () => {
                 try {
-                    const config = {
-                        accounts: GM_getValue('AI_ACCOUNTS', []),
-                        currentAccountId: GM_getValue('CURRENT_ACCOUNT_ID', ''),
-                        autoSummarize: GM_getValue('AUTO_SUMMARIZE', false),
-                        minAnswerLength: GM_getValue('MIN_ANSWER_LENGTH', 200)
-                    };
-                    
-                    const configJson = JSON.stringify(config, null, 2);
+                    const configJson = await this.configManager.exportConfig();
                     
                     if (navigator.clipboard && navigator.clipboard.writeText) {
                         await navigator.clipboard.writeText(configJson);
@@ -1036,20 +1125,25 @@
                         }
                         
                         if (confirm('导入配置将覆盖现有设置，确定要继续吗？')) {
-                            GM_setValue('AI_ACCOUNTS', config.accounts);
-                            GM_setValue('CURRENT_ACCOUNT_ID', config.currentAccountId || config.accounts[0]?.id || '');
-                            GM_setValue('AUTO_SUMMARIZE', config.autoSummarize !== undefined ? config.autoSummarize : false);
-                            GM_setValue('MIN_ANSWER_LENGTH', config.minAnswerLength || 200);
+                            const success = await this.configManager.importConfig(configJson);
                             
-                            this.apiClient.loadCurrentAccount();
-                            renderAccounts();
-                            
-                            const autoSumCheckbox = modal.querySelector('#zhihu-ai-auto-summarize');
-                            const minLengthInput = modal.querySelector('#zhihu-ai-min-answer-length');
-                            if (autoSumCheckbox) autoSumCheckbox.checked = GM_getValue('AUTO_SUMMARIZE', false);
-                            if (minLengthInput) minLengthInput.value = GM_getValue('MIN_ANSWER_LENGTH', 200);
-                            
-                            alert('配置导入成功！');
+                            if (success) {
+                                await this.apiClient.loadCurrentAccount();
+                                renderAccounts();
+                                
+                                const autoSumCheckbox = modal.querySelector('#zhihu-ai-auto-summarize');
+                                const minLengthInput = modal.querySelector('#zhihu-ai-min-answer-length');
+                                if (autoSumCheckbox) {
+                                    autoSumCheckbox.checked = await this.configManager.get('AUTO_SUMMARIZE', false);
+                                }
+                                if (minLengthInput) {
+                                    minLengthInput.value = await this.configManager.get('MIN_ANSWER_LENGTH', 200);
+                                }
+                                
+                                alert('配置导入成功！');
+                            } else {
+                                alert('配置导入失败');
+                            }
                         }
                     } catch (parseError) {
                         alert('配置格式错误，请检查JSON格式是否正确');
@@ -1060,11 +1154,11 @@
                 }
             });
 
-            modal.querySelector('#save-settings-btn').addEventListener('click', () => {
+            modal.querySelector('#save-settings-btn').addEventListener('click', async () => {
                 const autoSum = modal.querySelector('#zhihu-ai-auto-summarize').checked;
                 const minLength = parseInt(modal.querySelector('#zhihu-ai-min-answer-length').value) || 200;
-                GM_setValue('AUTO_SUMMARIZE', autoSum);
-                GM_setValue('MIN_ANSWER_LENGTH', minLength);
+                await this.configManager.set('AUTO_SUMMARIZE', autoSum);
+                await this.configManager.set('MIN_ANSWER_LENGTH', minLength);
                 alert('设置已保存！');
             });
 
@@ -1090,6 +1184,7 @@
     class ZhihuAISummary {
         constructor() {
             console.log('知乎AI总结油猴脚本已加载');
+            this.configManager = new ConfigManager();
             this.ui = new UIManager();
             this.addAnswerButtonsTimeout = null;
             this.init();
@@ -1148,9 +1243,11 @@
                 button.classList.add('zhihu-ai-summary-btn-article', 'zhihu-ai-summary-btn-answer');
                 authorHead.appendChild(button);
 
-                if (GM_getValue('AUTO_SUMMARIZE', false)) setTimeout(() => button.click(), 500);
-            } catch (err) {}
+                const autoSummarize = await this.configManager.get('AUTO_SUMMARIZE', false);
+                if (autoSummarize) setTimeout(() => button.click(), 500);
+            } catch (err) {
                 console.error('文章页面处理失败:', err);
+            }
         }
 
         async handleQuestionPage() {
@@ -1205,7 +1302,7 @@
 
         async addAnswerButtons() {
             const answers = document.querySelectorAll('.ContentItem.AnswerItem');
-            const autoSummarize = GM_getValue('AUTO_SUMMARIZE', false);
+            const autoSummarize = await this.configManager.get('AUTO_SUMMARIZE', false);
 
             for (let index = 0; index < answers.length; index++) {
                 const answerItem = answers[index];
@@ -1277,7 +1374,7 @@
                             return;
                         }
 
-                        const minAnswerLength = GM_getValue('MIN_ANSWER_LENGTH', 200);
+                        const minAnswerLength = await this.configManager.get('MIN_ANSWER_LENGTH', 200);
                         const contentLength = content.content.length;
 
                         if (!isManualClick && contentLength < minAnswerLength) {
