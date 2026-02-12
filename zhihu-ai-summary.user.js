@@ -470,9 +470,7 @@
                 const answerItem = insertTarget.closest('.ContentItem.AnswerItem');
                 if (answerItem) {
                     const metaUrls = answerItem.querySelectorAll('meta[itemprop="url"]');
-                    // 取第二个meta元素
                     const metaUrl = metaUrls.length > 1 ? metaUrls[1] : null;
-                    
                     if (metaUrl && metaUrl.content && metaUrl.content.includes('/answer/')) {
                         container._copyUrl = metaUrl.content;
                     }
@@ -1091,7 +1089,7 @@
 
     class ZhihuAISummary {
         constructor() {
-            console.log('知乎AI总结脚本已加载');
+            console.log('知乎AI总结油猴脚本已加载');
             this.ui = new UIManager();
             this.addAnswerButtonsTimeout = null;
             this.init();
@@ -1152,6 +1150,7 @@
 
                 if (GM_getValue('AUTO_SUMMARIZE', false)) setTimeout(() => button.click(), 500);
             } catch (err) {}
+                console.error('文章页面处理失败:', err);
         }
 
         async handleQuestionPage() {
