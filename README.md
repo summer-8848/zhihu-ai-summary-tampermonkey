@@ -2,6 +2,12 @@
 
 一个强大的油猴脚本，为知乎文章、问题和回答添加AI总结功能，使用ChatGPT进行智能内容总结。
 
+本项目已使用 Monorepo 架构重构，极大提升了开发和发版效率，当前仓库已不再维护，请使用新版[zhihu-ai-summary](https://github.com/summer-8848/zhihu-ai-summary)。
+
+---
+---
+---
+
 ## 安装
 - [一键安装油猴脚本](https://greasyfork.org/zh-CN/scripts/559782-%E7%9F%A5%E4%B9%8Eai%E6%80%BB%E7%BB%93%E5%8A%A9%E6%89%8B-by-summer121?locale_override=1)
 - [安装浏览器扩展版](https://github.com/summer-8848/zhihu-ai-summary-extension)
